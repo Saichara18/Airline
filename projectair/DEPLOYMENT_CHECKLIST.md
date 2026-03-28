@@ -60,13 +60,31 @@ Set in Render Dashboard → Environment:
 - [ ] `DATABASE_URL` = `flight_db.sqlite`
 - [ ] `PORT` = (leave empty, Render assigns it)
 
-### 8. Deployment Verification
+### 8. Admin Flight Management Features
+- [x] ✅ `/admin/add_flight` route implemented (GET/POST)
+- [x] ✅ `/admin/delete_flight/<id>` route implemented (POST)
+- [x] ✅ `admin_add_flight.html` template created
+- [x] ✅ `admin_flights.html` updated with delete buttons
+- [x] ✅ Delete confirmation dialog implemented
+- [x] ✅ Cascading delete (removes associated bookings)
+- [x] ✅ Flash messages for success/error feedback
+
+### 9. Deployment Verification
 After deployment on Render:
 - [ ] Visit your app URL
 - [ ] Verify login page loads
 - [ ] Test signup with new account
 - [ ] Test login with created account
 - [ ] Test flight search
+- [ ] **TEST ADMIN FEATURES:**
+  - [ ] Login as admin (saicharan)
+  - [ ] Go to Admin Panel → View Flights
+  - [ ] Click "➕ Add Flight" button
+  - [ ] Fill form and add a new flight
+  - [ ] Verify flight appears in list
+  - [ ] Click "🗑️ Delete" on a flight
+  - [ ] Confirm deletion dialog
+  - [ ] Verify flight removed from list
 - [ ] Check Render logs for errors: Render Dashboard → Logs
 - [ ] Database file created: `flight_db.sqlite`
 

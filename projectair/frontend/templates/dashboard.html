@@ -38,7 +38,7 @@
   </header>
 
   <!-- Navigation Buttons -->
-  <main class="flex justify-center items-center space-x-6 mt-24">
+  <main class="flex justify-center items-center space-x-6 mt-24 flex-wrap">
     <!-- Display a single "Book Ticket" link -->
     <a href="{{ url_for('book_ticket') }}" class="bg-blue-600 hover:bg-blue-700 px-8 py-3 rounded-xl shadow-lg text-xl font-semibold transition duration-300">
       Book Ticket
@@ -47,7 +47,13 @@
     <!-- Other Links -->
     <a href="{{ url_for('my_bookings') }}" class="bg-blue-600 hover:bg-blue-700 px-8 py-3 rounded-xl shadow-lg text-xl font-semibold transition duration-300">My Bookings</a>
     <a href="{{ url_for('general_info') }}" class="bg-blue-600 hover:bg-blue-700 px-8 py-3 rounded-xl shadow-lg text-xl font-semibold transition duration-300">General Info</a>
-    <a href="{{ url_for('upload_delay') }}" class="bg-blue-600 hover:bg-blue-700 px-8 py-3 rounded-xl shadow-lg text-xl font-semibold transition duration-300">Upload Delay</a>
+    
+    <!-- Admin Panel Button (only for admins) -->
+    {% if is_admin %}
+    <a href="{{ url_for('admin_dashboard') }}" class="bg-red-600 hover:bg-red-700 px-8 py-3 rounded-xl shadow-lg text-xl font-semibold transition duration-300">
+      📊 Admin Panel
+    </a>
+    {% endif %}
   </main>
 </body>
 </html>

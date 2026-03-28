@@ -161,7 +161,8 @@ def dashboard():
         return redirect(url_for('login'))
     username = session['username']
     first_letter = username[0].upper() if username else 'U'
-    return render_template('dashboard.html', username=username, first_letter=first_letter)
+    user_is_admin = is_admin()
+    return render_template('dashboard.html', username=username, first_letter=first_letter, is_admin=user_is_admin)
 
 
 @app.route('/logout')
@@ -537,6 +538,10 @@ def customer_support():
 # ============= FLIGHT DELAY ROUTES =============
 @app.route("/upload_delay", methods=["GET", "POST"])
 def upload_delay():
+    if 'user_id' not in session or not is_admin():
+        flash("Admin access required!", "error")
+        return redirect(url_for('dashboard'))
+    
     conn = connect_db()
     cursor = conn.cursor()
 
@@ -563,6 +568,249 @@ def upload_delay():
     conn.close()
 
     return render_template("upload_delay.html", delays=delays)
+
+
+# ============= ADMIN ROUTES =============
+def is_admin():
+    """Check if current user is admin"""
+    if 'user_id' not in session:
+        return False
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE user_id = ?", (session['user_id'],))
+    result = cursor.fetchone()
+    conn.close()
+    
+    return result and result['is_admin'] == 1
+
+
+@app.route('/admin')
+def admin_dashboard():
+    if 'user_id' not in session or not is_admin():
+        flash("Admin access required!", "error")
+        return redirect(url_for('dashboard'))
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    # Get total bookings
+    cursor.execute("SELECT COUNT(*) as total_bookings FROM bookings")
+    total_bookings = cursor.fetchone()['total_bookings']
+    
+    # Get total users
+    cursor.execute("SELECT COUNT(*) as total_users FROM users WHERE is_admin = 0")
+    total_users = cursor.fetchone()['total_users']
+    
+    # Get total flights
+    cursor.execute("SELECT COUNT(*) as total_flights FROM flights")
+    total_flights = cursor.fetchone()['total_flights']
+    
+    # Get available seats across all flights
+    cursor.execute("SELECT SUM(available_seats) as available_seats FROM flights")
+    available_seats = cursor.fetchone()['available_seats'] or 0
+    
+    # Get completed bookings (with transaction_id)
+    cursor.execute("SELECT COUNT(*) as completed FROM bookings WHERE transaction_id IS NOT NULL")
+    completed_bookings = cursor.fetchone()['completed']
+    
+    conn.close()
+    
+    return render_template('admin_dashboard.html',
+                           total_bookings=total_bookings,
+                           total_users=total_users,
+                           total_flights=total_flights,
+                           available_seats=available_seats,
+                           completed_bookings=completed_bookings)
+
+
+@app.route('/admin/bookings')
+def admin_all_bookings():
+    if 'user_id' not in session or not is_admin():
+        flash("Admin access required!", "error")
+        return redirect(url_for('dashboard'))
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    # Get all bookings with user and flight details
+    cursor.execute("""
+        SELECT b.id, b.transaction_id, b.date AS selected_date, f.flight_number, f.source, f.destination, f.price,
+               b.passenger_name AS name, b.age, b.gender, b.nationality, u.name AS user_name, u.email, b.user_id
+        FROM bookings b
+        JOIN flights f ON b.flight_id = f.id
+        JOIN users u ON b.user_id = u.user_id
+        ORDER BY b.id DESC
+    """)
+    
+    rows = cursor.fetchall()
+    
+    # Group bookings by transaction_id
+    grouped_bookings = {}
+    for row in rows:
+        txn = row['transaction_id'] or f"PENDING-{row['id']}"
+        if txn not in grouped_bookings:
+            grouped_bookings[txn] = {
+                'transaction_id': txn,
+                'selected_date': row['selected_date'],
+                'flight_number': row['flight_number'],
+                'source': row['source'],
+                'destination': row['destination'],
+                'total_amount': 0,
+                'user_name': row['user_name'],
+                'user_email': row['email'],
+                'user_id': row['user_id'],
+                'passengers': []
+            }
+        grouped_bookings[txn]['passengers'].append({
+            'name': row['name'],
+            'age': row['age'],
+            'gender': row['gender'],
+            'nationality': row['nationality']
+        })
+        grouped_bookings[txn]['total_amount'] += row['price']
+    
+    conn.close()
+    
+    return render_template('admin_bookings.html', bookings=list(grouped_bookings.values()))
+
+
+@app.route('/admin/users')
+def admin_users():
+    if 'user_id' not in session or not is_admin():
+        flash("Admin access required!", "error")
+        return redirect(url_for('dashboard'))
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    # Get all users (except admins)
+    cursor.execute("""
+        SELECT u.user_id, u.name, u.email, u.mobile, u.location, u.dob,
+               COUNT(b.id) as total_bookings
+        FROM users u
+        LEFT JOIN bookings b ON u.user_id = b.user_id
+        WHERE u.is_admin = 0
+        GROUP BY u.user_id
+        ORDER BY u.user_id DESC
+    """)
+    
+    users = cursor.fetchall()
+    conn.close()
+    
+    return render_template('admin_users.html', users=users)
+
+
+@app.route('/admin/flights')
+def admin_flights():
+    if 'user_id' not in session or not is_admin():
+        flash("Admin access required!", "error")
+        return redirect(url_for('dashboard'))
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    # Get all flights with booking statistics
+    cursor.execute("""
+        SELECT f.id, f.flight_number, f.source, f.destination, f.departure_time, f.arrival_time,
+               f.available_seats, f.price, COUNT(b.id) as total_booked
+        FROM flights f
+        LEFT JOIN bookings b ON f.id = b.flight_id
+        GROUP BY f.id
+        ORDER BY f.flight_number
+    """)
+    
+    flights = cursor.fetchall()
+    conn.close()
+    
+    return render_template('admin_flights.html', flights=flights)
+
+
+@app.route('/admin/add_flight', methods=['GET', 'POST'])
+def admin_add_flight():
+    if 'user_id' not in session or not is_admin():
+        flash("Admin access required!", "error")
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        flight_number = request.form['flight_number'].strip().upper()
+        source = request.form['source'].strip()
+        destination = request.form['destination'].strip()
+        departure_time = request.form.get('departure_time', '')
+        arrival_time = request.form.get('arrival_time', '')
+        available_seats = int(request.form.get('available_seats', 0))
+        price = float(request.form.get('price', 0))
+        
+        if not all([flight_number, source, destination, available_seats, price]):
+            flash("Please fill in all required fields!", "error")
+            return render_template('admin_add_flight.html')
+        
+        try:
+            conn = connect_db()
+            cursor = conn.cursor()
+            
+            # Check if flight already exists
+            cursor.execute("SELECT id FROM flights WHERE flight_number = ?", (flight_number,))
+            if cursor.fetchone():
+                conn.close()
+                flash("Flight number already exists!", "error")
+                return render_template('admin_add_flight.html')
+            
+            # Add new flight
+            cursor.execute("""
+                INSERT INTO flights (flight_number, source, destination, departure_time, arrival_time, available_seats, price)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (flight_number, source, destination, departure_time, arrival_time, available_seats, price))
+            
+            conn.commit()
+            conn.close()
+            
+            flash(f"✅ Flight {flight_number} added successfully!", "success")
+            return redirect(url_for('admin_flights'))
+        
+        except Exception as e:
+            flash(f"Error adding flight: {str(e)}", "error")
+            return render_template('admin_add_flight.html')
+    
+    return render_template('admin_add_flight.html')
+
+
+@app.route('/admin/delete_flight/<int:flight_id>', methods=['POST'])
+def admin_delete_flight(flight_id):
+    if 'user_id' not in session or not is_admin():
+        flash("Admin access required!", "error")
+        return redirect(url_for('dashboard'))
+    
+    try:
+        conn = connect_db()
+        cursor = conn.cursor()
+        
+        # Get flight details before deleting
+        cursor.execute("SELECT flight_number FROM flights WHERE id = ?", (flight_id,))
+        flight = cursor.fetchone()
+        
+        if not flight:
+            conn.close()
+            flash("Flight not found!", "error")
+            return redirect(url_for('admin_flights'))
+        
+        flight_number = flight['flight_number']
+        
+        # Delete associated bookings first
+        cursor.execute("DELETE FROM bookings WHERE flight_id = ?", (flight_id,))
+        
+        # Delete the flight
+        cursor.execute("DELETE FROM flights WHERE id = ?", (flight_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f"✅ Flight {flight_number} deleted successfully!", "success")
+        return redirect(url_for('admin_flights'))
+    
+    except Exception as e:
+        flash(f"Error deleting flight: {str(e)}", "error")
+        return redirect(url_for('admin_flights'))
 
 
 # ============= ERROR HANDLERS =============

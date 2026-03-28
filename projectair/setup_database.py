@@ -31,7 +31,8 @@ def initialize_db():
         dob TEXT,
         email TEXT UNIQUE NOT NULL,
         mobile TEXT,
-        password TEXT NOT NULL
+        password TEXT NOT NULL,
+        is_admin INTEGER DEFAULT 0
     )
     """)
 

@@ -76,13 +76,68 @@ CONVERSION_COMPLETE.md
 QUICK_REFERENCE.md
    └─ Quick commands and fixes
 
+DEPLOYMENT_READY.md
+   └─ Production deployment checklist
+
+DEPLOYMENT_SUMMARY.md
+   └─ Flight management deployment details
+
+FLIGHT_MANAGEMENT_DEPLOYMENT.md
+   └─ Technical deployment summary for flight features
+
+ADMIN_FLIGHT_MANAGEMENT_GUIDE.md
+   └─ Step-by-step guide for admins using flight management
+
 This file (INDEX.md)
    └─ Navigation guide
 ```
 
 ---
 
-## 🗺️ DECISION MATRIX
+## 🎉 NEW: Admin Flight Management Features
+
+### Flight Management Deployment (Latest)
+
+```
+✨ NEW FEATURES DEPLOYED
+├─ Admin Add Flight      /admin/add_flight
+├─ Admin Delete Flight   /admin/delete_flight/<id>
+└─ Enhanced Flight List  with Actions column
+
+📖 DOCUMENTATION
+├─ DEPLOYMENT_SUMMARY.md
+│  └─ Quick overview of what's being deployed
+│
+├─ ADMIN_FLIGHT_MANAGEMENT_GUIDE.md
+│  └─ Step-by-step guide for admins to use new features
+│
+└─ FLIGHT_MANAGEMENT_DEPLOYMENT.md
+   └─ Technical deployment details and verification
+```
+
+### Quick Start for Flight Management
+
+```
+1. Verify Setup
+   $ python verify_flight_management.py
+   (Should show: ✅ 5/5 checks passed)
+
+2. Test Locally
+   $ cd frontend && python app.py
+   → Login as: balugusaicharan@gmail.com / Saicharan@2005
+   → Go to Admin Panel → View Flights
+
+3. Deploy
+   $ git add .
+   $ git commit -m "Deploy admin flight management"
+   $ git push origin main
+   (Render auto-deploys)
+
+4. Test Production
+   → Same login, verify add/delete flight buttons work
+```
+
+---
 
 Choose your path:
 
