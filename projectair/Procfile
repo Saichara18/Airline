@@ -1,0 +1,2 @@
+web: cd frontend && gunicorn app:app
+release: python setup_database.py
