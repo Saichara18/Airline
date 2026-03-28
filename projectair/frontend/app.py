@@ -21,6 +21,24 @@ Session(app)
 # Database path - relative to parent directory
 DATABASE_URL = os.environ.get('DATABASE_URL', os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'flight_db.sqlite'))
 
+# Initialize database when app starts (works with both local dev and gunicorn/production)
+print(f"Initializing database at: {DATABASE_URL}")
+from setup_database import initialize_db
+if not os.path.exists(DATABASE_URL):
+    print("Creating new database...")
+    initialize_db()
+else:
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = cursor.fetchall()
+    conn.close()
+    if not tables:
+        print("Database exists but empty. Initializing tables...")
+        initialize_db()
+    else:
+        print(f"✅ Database ready with {len(tables)} tables.")
+
 
 # ============= DATABASE UTILITIES =============
 def connect_db():
@@ -560,10 +578,7 @@ def server_error(error):
 
 
 if __name__ == "__main__":
-    # Initialize database on startup
-    init_db()
-    
-    # Run app
+    # Run app (local development only - gunicorn handles production)
     debug = os.environ.get('FLASK_ENV') == 'development'
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=debug)
